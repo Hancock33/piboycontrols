@@ -52,21 +52,21 @@ struct kobject *kobj_ref;
 
 static volatile unsigned *gpio;
 
-static const short gc_btn[] = { BTN_A, //A
-				BTN_B, //B
-				BTN_C, //C
-				BTN_X, //X
-				BTN_Y, //Y
-				BTN_Z, //Z
-				BTN_SELECT, //Select
-				BTN_START, //Start
-				BTN_THUMBL, //Left Thumb
-				BTN_DPAD_UP, //DPAD Up
-				BTN_DPAD_DOWN, //DPAD Down
-				BTN_DPAD_LEFT, //DPAD Left
-				BTN_DPAD_RIGHT, //DPAD Right
-				BTN_TL, //Left Trigger
-				BTN_TR, //Right Trigger
+static const short gc_btn[] = { BTN_A, 	//A
+				BTN_B, 					//B
+				BTN_C, 					//C
+				BTN_X, 					//X
+				BTN_Y, 					//Y
+				BTN_Z, 					//Z
+				BTN_SELECT, 			//Select
+				BTN_START, 				//Start
+				BTN_THUMBL, 			//Left Thumb
+				BTN_DPAD_UP, 			//DPAD Up
+				BTN_DPAD_DOWN, 			//DPAD Down
+				BTN_DPAD_LEFT, 			//DPAD Left
+				BTN_DPAD_RIGHT, 		//DPAD Right
+				BTN_TL, 				//Left Trigger
+				BTN_TR, 				//Right Trigger
 			};
 int gc_btn_size = sizeof(gc_btn);
 
@@ -171,9 +171,9 @@ static void gc_timer(struct timer_list *t)
 
 	int byteindex;
 	long bitindex;
-	//데드존 설정
+	//Set Dead Zone
 	int nAX = 0, nAY = 0;
-	int dzone = 26;
+	int dzone = 30;
 
 
 	gpio_func(gc_gpio_data,1);	//input
@@ -262,36 +262,27 @@ static void gc_timer(struct timer_list *t)
 		input_report_key(dev, gc_btn[6], data[3]&0x40);		//Select
 		input_report_key(dev, gc_btn[7], data[3]&0x80); 	//Start
 		input_report_key(dev, gc_btn[8], data[4]&0x40);		//Left Thumb
-		//input_report_key(dev, gc_btn[9], data[4]&0x01);		//DPAD Up
+		//input_report_key(dev, gc_btn[9], data[4]&0x01);	//DPAD Up
 		//input_report_key(dev, gc_btn[10], data[4]&0x02);	//DPAD Down
 		//input_report_key(dev, gc_btn[11], data[4]&0x04);	//DPAD Left
 		//input_report_key(dev, gc_btn[12], data[4]&0x08);	//DPAD Right
-
-		input_report_abs(dev, ABS_HAT0X, !(data[4]&0x04)-!(data[4]&0x08));	//HAT X
-		input_report_abs(dev, ABS_HAT0Y, !(data[4]&0x02)-!(data[4]&0x01));	//HAT Y
-
 		input_report_key(dev, gc_btn[13], data[4]&0x10);	//Left Shoulder
 		input_report_key(dev, gc_btn[14], data[4]&0x20);	//Right Shoulder
-
+		input_report_abs(dev, ABS_HAT0X, !(data[4]&0x04)-!(data[4]&0x08));	//HAT X Left/Right
+		input_report_abs(dev, ABS_HAT0Y, !(data[4]&0x02)-!(data[4]&0x01));	//HAT Y Down/Up
 		input_sync(dev);
 
-		batt_val = (int)(data[7]*5)+2950;		//Battery Voltage
+		batt_val = (int)(data[7]*5)+2950;			//Battery Voltage
 		cur_val = (int)((signed char)data[8])*50;	//Current
-		percent_val = data[9];				//battery percentage
-		stat_val = data[5]&0xC6;			//VBus,Shutdown,VSTAT2,VSTAT1
-		vol_val = data[6];				//Volume
+		percent_val = data[9];						//battery percentage
+		stat_val = data[5]&0xC6;					//VBus,Shutdown,VSTAT2,VSTAT1
+		vol_val = data[6];							//Volume
 
 		lasterror = 0;
 	}
 	else{
 		lasterror++;
 		printk(KERN_INFO "XPi Gamecon CRC Error: %4.4lu %4.4lu",lastgood,lasterror);
-		//printk(KERN_INFO "XPi Gamecon CRC Error: %4.4lu %4.4lu %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x",
-		//	lastgood,lasterror, 
-		//	data[0],data[1],data[2],data[3],
-		//	data[4],data[5],data[6],data[7],
-		//	data[8],data[9],data[10],data[11],
-		//	data[12],data[13],data[14],data[15]);
 		lastgood=0;
 	}
 
