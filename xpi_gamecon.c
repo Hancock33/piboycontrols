@@ -52,26 +52,24 @@ struct kobject *kobj_ref;
 
 static volatile unsigned *gpio;
 
-static const short gc_btn[] = { BTN_A, 	//A
-				BTN_B, 					//B
-				BTN_C, 					//C
-				BTN_X, 					//X
-				BTN_Y, 					//Y
-				BTN_Z, 					//Z
-				BTN_SELECT, 			//Select
-				BTN_START, 				//Start
-				BTN_THUMBL, 			//Left Thumb
-				BTN_DPAD_UP, 			//DPAD Up
-				BTN_DPAD_DOWN, 			//DPAD Down
-				BTN_DPAD_LEFT, 			//DPAD Left
-				BTN_DPAD_RIGHT, 		//DPAD Right
-				BTN_TL, 				//Left Trigger
-				BTN_TR, 				//Right Trigger
+static const short gc_btn[] = { BTN_A, //A
+				BTN_B, //B
+				BTN_C, //C
+				BTN_X, //X
+				BTN_Y, //Y
+				BTN_Z, //Z
+				BTN_SELECT, //Select
+				BTN_START, //Start
+				BTN_THUMBL, //Left Thumb
+				BTN_TL, //Left Trigger
+				BTN_TR, //Right Trigger
 			};
-int gc_btn_size = sizeof(gc_btn);
+int gc_btn_size = sizeof(gc_btn)/sizeof(gc_btn[0]);
 
 struct gc {
 	struct input_dev *dev;
+	struct input_dev *volume_dev;
+	struct input_dev *power_dev;
 	struct timer_list timer;
 	int used;
 	struct mutex mutex;
@@ -168,13 +166,11 @@ static void gc_timer(struct timer_list *t)
 
 	unsigned char data[32];
 	struct input_dev *dev = gc->dev;
+	struct input_dev *volume_dev = gc->volume_dev;
+	struct input_dev *power_dev = gc->power_dev;
 
 	int byteindex;
 	long bitindex;
-	//Set Dead Zone
-	int nAX = 0, nAY = 0;
-	int dzone = 30;
-
 
 	gpio_func(gc_gpio_data,1);	//input
 
@@ -244,38 +240,35 @@ static void gc_timer(struct timer_list *t)
 		}
 
 		lastgood++;
-		
-		nAX = (int16_t)data[1];
-		nAY = (int16_t)data[2];
-		if ( nAX > (127 - dzone) && nAX < (127 + dzone) ) nAX = 127;
-		if ( nAY > (127 - dzone) && nAY < (127 + dzone) ) nAY = 127;
 
-		input_report_abs(dev, ABS_X, nAX);		//X Axis
-		input_report_abs(dev, ABS_Y, nAY);		//Y Axis
+		input_report_key(dev, gc_btn[0], !(data[3]&0x01));			//A
+		input_report_key(dev, gc_btn[1], !(data[3]&0x02));			//B
+		input_report_key(dev, gc_btn[2], !(data[3]&0x04));			//C
+		input_report_key(dev, gc_btn[3], !(data[3]&0x08));			//X
+		input_report_key(dev, gc_btn[4], !(data[3]&0x10));			//Y
+		input_report_key(dev, gc_btn[5], !(data[3]&0x20));			//Z
+		input_report_key(dev, gc_btn[6], data[3]&0x40);				//Select
+		input_report_key(dev, gc_btn[7], data[3]&0x80);				//Start
+		input_report_key(dev, gc_btn[8], data[4]&0x40);				//Left Thumb
+		input_report_key(dev, gc_btn[9], data[4]&0x10);				//Left Shoulder
+		input_report_key(dev, gc_btn[10], data[4]&0x20);			//Right Shoulder
+		input_report_abs(dev, ABS_HAT0X, !(data[4]&0x04)-!(data[4]&0x08));	//HAT X
+		input_report_abs(dev, ABS_HAT0Y, !(data[4]&0x02)-!(data[4]&0x01));	//HAT Y
+		input_report_abs(dev, ABS_X, (int16_t)data[1]);				//X Axis
+		input_report_abs(dev, ABS_Y, (int16_t)data[2]);				//Y Axis
 
-		input_report_key(dev, gc_btn[0], !(data[3]&0x01));	//A
-		input_report_key(dev, gc_btn[1], !(data[3]&0x02));	//B
-		input_report_key(dev, gc_btn[2], !(data[3]&0x04));	//C
-		input_report_key(dev, gc_btn[3], !(data[3]&0x08));	//X
-		input_report_key(dev, gc_btn[4], !(data[3]&0x10));	//Y
-		input_report_key(dev, gc_btn[5], !(data[3]&0x20));	//Z
-		input_report_key(dev, gc_btn[6], data[3]&0x40);		//Select
-		input_report_key(dev, gc_btn[7], data[3]&0x80); 	//Start
-		input_report_key(dev, gc_btn[8], data[4]&0x40);		//Left Thumb
-		//input_report_key(dev, gc_btn[9], data[4]&0x01);	//DPAD Up
-		//input_report_key(dev, gc_btn[10], data[4]&0x02);	//DPAD Down
-		//input_report_key(dev, gc_btn[11], data[4]&0x04);	//DPAD Left
-		//input_report_key(dev, gc_btn[12], data[4]&0x08);	//DPAD Right
-		input_report_key(dev, gc_btn[13], data[4]&0x10);	//Left Shoulder
-		input_report_key(dev, gc_btn[14], data[4]&0x20);	//Right Shoulder
-		input_report_abs(dev, ABS_HAT0X, !(data[4]&0x04)-!(data[4]&0x08));	//HAT X Left/Right
-		input_report_abs(dev, ABS_HAT0Y, !(data[4]&0x02)-!(data[4]&0x01));	//HAT Y Down/Up
 		input_sync(dev);
 
-		batt_val = (int)(data[7]*5)+2950;			//Battery Voltage
-		cur_val = (int)((signed char)data[8])*50;	//Current
-		percent_val = data[9];						//battery percentage
-		stat_val = data[5]&0xC6;					//VBus,Shutdown,VSTAT2,VSTAT1
+		input_report_abs(volume_dev, ABS_VOLUME, data[6]);
+		input_sync(volume_dev);
+
+		input_report_key(power_dev, KEY_POWER, !(data[5]&0x40));
+		input_sync(power_dev);
+
+		batt_val = (int)(data[7]*5)+2950;					//Battery Voltage
+		cur_val = (int)((signed char)data[8])*50;				//Current
+		percent_val = data[9];							//battery percentage
+		stat_val = data[5]&0xC6;						//VBus,Shutdown,VSTAT2,VSTAT1
 		vol_val = data[6];							//Volume
 
 		lasterror = 0;
@@ -342,6 +335,82 @@ err_free_dev:
 	return err;
 }
 
+/* volume device
+ */
+static int __init gc_setup_volume(struct gc *gc)
+{
+	struct input_dev *input_dev;
+	int err;
+
+	gc->volume_dev = input_dev = input_allocate_device();
+	if (!input_dev) {
+		printk(KERN_INFO "Not enough memory for volume input device\n");
+		return -ENOMEM;
+	}
+
+	input_dev->name = "PiBoy Volume wheel";
+	input_dev->phys = "input1";
+	input_dev->id.bustype = BUS_PARPORT;
+	input_dev->id.vendor = 0x0001;
+	input_dev->id.product = 1;
+	input_dev->id.version = 0x0100;
+
+	input_set_drvdata(input_dev, gc);
+
+	__set_bit(EV_ABS, input_dev->evbit);
+	__set_bit(ABS_VOLUME, input_dev->absbit);
+
+	input_set_abs_params(input_dev, ABS_VOLUME, 0, 100, 0, 0);
+
+	err = input_register_device(input_dev);
+	if (err)
+		goto err_free_dev;
+
+	return 0;
+
+err_free_dev:
+	input_free_device(gc->volume_dev);
+	gc->volume_dev = NULL;
+	return err;
+}
+
+/* power device
+ */
+static int __init gc_setup_power(struct gc *gc)
+{
+	struct input_dev *input_dev;
+	int err;
+
+	gc->power_dev = input_dev = input_allocate_device();
+	if (!input_dev) {
+		printk(KERN_INFO "Not enough memory for power input device\n");
+		return -ENOMEM;
+	}
+
+	input_dev->name = "PiBoy Power switch";
+	input_dev->phys = "input2";
+	input_dev->id.bustype = BUS_PARPORT;
+	input_dev->id.vendor = 0x0001;
+	input_dev->id.product = 1;
+	input_dev->id.version = 0x0100;
+
+	input_set_drvdata(input_dev, gc);
+
+	__set_bit(EV_KEY, input_dev->evbit);
+	__set_bit(KEY_POWER, input_dev->keybit);
+
+	err = input_register_device(input_dev);
+	if (err)
+		goto err_free_dev;
+
+	return 0;
+
+err_free_dev:
+	input_free_device(gc->power_dev);
+	gc->power_dev = NULL;
+	return err;
+}
+
 static struct gc __init *gc_probe(void)
 {
 	struct gc *gc;
@@ -360,10 +429,16 @@ static struct gc __init *gc_probe(void)
 
 	err = gc_setup_pad(gc);
 	if (err) goto err_unreg_devs;
+	err = gc_setup_volume(gc);
+	if (err) goto err_unreg_devs;
+	err = gc_setup_power(gc);
+	if (err) goto err_unreg_devs;
 	return gc;
 
  err_unreg_devs:
 	if (gc->dev) input_unregister_device(gc->dev);
+	if (gc->volume_dev) input_unregister_device(gc->volume_dev);
+	if (gc->power_dev) input_unregister_device(gc->power_dev);
 	kfree(gc);
  err_out:
 	return ERR_PTR(err);
@@ -373,6 +448,10 @@ static void gc_remove(struct gc *gc)
 {
 	if (gc->dev)
 		input_unregister_device(gc->dev);
+	if (gc->volume_dev)
+		input_unregister_device(gc->volume_dev);
+	if (gc->power_dev)
+		input_unregister_device(gc->power_dev);
 	kfree(gc);
 }
 
@@ -415,7 +494,6 @@ static u32 __init gc_bcm_peri_base_probe(void) {
 	return base_address == 1 ? 0x02000000 : base_address;
 }
 
-
 static int __init gc_init(void)
 {
 	/* BCM board peripherals address base */
@@ -425,7 +503,6 @@ static int __init gc_init(void)
 	values.fan_val = 10;
 	values.red_val = 2;
 	values.green_val = 2;
-
 
 	/* Get the BCM2708 peripheral address */
 	gc_bcm2708_peri_base = gc_bcm_peri_base_probe();
