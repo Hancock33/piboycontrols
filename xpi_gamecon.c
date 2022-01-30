@@ -171,6 +171,10 @@ static void gc_timer(struct timer_list *t)
 
 	int byteindex;
 	long bitindex;
+	
+	//Set Dead Zone
+	int nAX = 0, nAY = 0;
+	int dzone = 30;
 
 	gpio_func(gc_gpio_data,1);	//input
 
@@ -240,6 +244,11 @@ static void gc_timer(struct timer_list *t)
 		}
 
 		lastgood++;
+		
+		nAX = (int16_t)data[1];
+		nAY = (int16_t)data[2];
+		if ( nAX > (127 - dzone) && nAX < (127 + dzone) ) nAX = 127;
+		if ( nAY > (127 - dzone) && nAY < (127 + dzone) ) nAY = 127;
 
 		input_report_key(dev, gc_btn[0], !(data[3]&0x01));			//A
 		input_report_key(dev, gc_btn[1], !(data[3]&0x02));			//B
@@ -254,8 +263,8 @@ static void gc_timer(struct timer_list *t)
 		input_report_key(dev, gc_btn[10], data[4]&0x20);			//Right Shoulder
 		input_report_abs(dev, ABS_HAT0X, !(data[4]&0x04)-!(data[4]&0x08));	//HAT X
 		input_report_abs(dev, ABS_HAT0Y, !(data[4]&0x02)-!(data[4]&0x01));	//HAT Y
-		input_report_abs(dev, ABS_X, (int16_t)data[1]);				//X Axis
-		input_report_abs(dev, ABS_Y, (int16_t)data[2]);				//Y Axis
+		input_report_abs(dev, ABS_X, nAX);							//X Axis
+		input_report_abs(dev, ABS_Y, nAY);							//Y Axis
 
 		input_sync(dev);
 
