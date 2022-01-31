@@ -174,7 +174,7 @@ static void gc_timer(struct timer_list *t)
 	
 	//Set Dead Zone
 	int nAX = 0, nAY = 0;
-	int dzone = 30;
+	int dzone = 20;
 
 	gpio_func(gc_gpio_data,1);	//input
 
