@@ -1,7 +1,7 @@
 obj-m := xpi_gamecon.o
 
 all:
-	$(MAKE) -C $(KVERSION)/build modules
+	$(MAKE) -C $(KVERSION) modules
 
 clean:
-	$(MAKE) -C $(KVERSION)/build clean
+	$(MAKE) -C $(KVERSION) clean
