@@ -171,10 +171,6 @@ static void gc_timer(struct timer_list *t)
 
 	int byteindex;
 	long bitindex;
-	
-	//Set Dead Zone
-	int nAX = 0, nAY = 0;
-	int dzone = 20;
 
 	gpio_func(gc_gpio_data,1);	//input
 
@@ -245,26 +241,21 @@ static void gc_timer(struct timer_list *t)
 
 		lastgood++;
 		
-		nAX = (int16_t)data[1];
-		nAY = (int16_t)data[2];
-		if ( nAX > (127 - dzone) && nAX < (127 + dzone) ) nAX = 127;
-		if ( nAY > (127 - dzone) && nAY < (127 + dzone) ) nAY = 127;
-
-		input_report_key(dev, gc_btn[0], !(data[3]&0x01));			//A
-		input_report_key(dev, gc_btn[1], !(data[3]&0x02));			//B
-		input_report_key(dev, gc_btn[2], !(data[3]&0x04));			//C
-		input_report_key(dev, gc_btn[3], !(data[3]&0x08));			//X
-		input_report_key(dev, gc_btn[4], !(data[3]&0x10));			//Y
-		input_report_key(dev, gc_btn[5], !(data[3]&0x20));			//Z
-		input_report_key(dev, gc_btn[6], data[3]&0x40);				//Select
-		input_report_key(dev, gc_btn[7], data[3]&0x80);				//Start
-		input_report_key(dev, gc_btn[8], data[4]&0x40);				//Left Thumb
-		input_report_key(dev, gc_btn[9], data[4]&0x10);				//Left Shoulder
-		input_report_key(dev, gc_btn[10], data[4]&0x20);			//Right Shoulder
+		input_report_key(dev, gc_btn[0], !(data[3]&0x01));	//A
+		input_report_key(dev, gc_btn[1], !(data[3]&0x02));	//B
+		input_report_key(dev, gc_btn[2], !(data[3]&0x04));	//C
+		input_report_key(dev, gc_btn[3], !(data[3]&0x08));	//X
+		input_report_key(dev, gc_btn[4], !(data[3]&0x10));	//Y
+		input_report_key(dev, gc_btn[5], !(data[3]&0x20));	//Z
+		input_report_key(dev, gc_btn[6], data[3]&0x40);		//Select
+		input_report_key(dev, gc_btn[7], data[3]&0x80); 	//Start
+		input_report_key(dev, gc_btn[8], data[4]&0x40);		//Left Thumb
+		input_report_key(dev, gc_btn[9], data[4]&0x10);	    //Left Shoulder
+		input_report_key(dev, gc_btn[10], data[4]&0x20);	//Right Shoulder
 		input_report_abs(dev, ABS_HAT0X, !(data[4]&0x04)-!(data[4]&0x08));	//HAT X
 		input_report_abs(dev, ABS_HAT0Y, !(data[4]&0x02)-!(data[4]&0x01));	//HAT Y
-		input_report_abs(dev, ABS_X, nAX);							//X Axis
-		input_report_abs(dev, ABS_Y, nAY);							//Y Axis
+		input_report_abs(dev, ABS_X, (int16_t)data[1]);		//X Axis
+		input_report_abs(dev, ABS_Y, (int16_t)data[2]);		//Y Axis
 
 		input_sync(dev);
 
@@ -274,11 +265,11 @@ static void gc_timer(struct timer_list *t)
 		input_report_key(power_dev, KEY_POWER, !(data[5]&0x40));
 		input_sync(power_dev);
 
-		batt_val = (int)(data[7]*5)+2950;					//Battery Voltage
-		cur_val = (int)((signed char)data[8])*50;				//Current
-		percent_val = data[9];							//battery percentage
-		stat_val = data[5]&0xC6;						//VBus,Shutdown,VSTAT2,VSTAT1
-		vol_val = data[6];							//Volume
+		batt_val = (int)(data[7]*5)+2950;            //Battery Voltage
+		cur_val = (int)((signed char)data[8])*50;    //Current
+		percent_val = data[9];                       //battery percentage
+		stat_val = data[5]&0xC6;                     //VBus,Shutdown,VSTAT2,VSTAT1
+		vol_val = data[6];                           //Volume
 
 		lasterror = 0;
 	}
