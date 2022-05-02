@@ -54,10 +54,10 @@ static volatile unsigned *gpio;
 
 static const short gc_btn[] = { BTN_A, //A
 				BTN_B, //B
-				BTN_C, //C
-				BTN_X, //X
 				BTN_Y, //Y
+				BTN_X, //X
 				BTN_Z, //Z
+				BTN_C, //C
 				BTN_SELECT, //Select
 				BTN_START, //Start
 				BTN_THUMBL, //Left Thumb
@@ -243,10 +243,10 @@ static void gc_timer(struct timer_list *t)
 		
 		input_report_key(dev, gc_btn[0], !(data[3]&0x01));	//A
 		input_report_key(dev, gc_btn[1], !(data[3]&0x02));	//B
-		input_report_key(dev, gc_btn[2], !(data[3]&0x04));	//C
-		input_report_key(dev, gc_btn[3], !(data[3]&0x08));	//X
-		input_report_key(dev, gc_btn[4], !(data[3]&0x10));	//Y
-		input_report_key(dev, gc_btn[5], !(data[3]&0x20));	//Z
+		input_report_key(dev, gc_btn[2], !(data[3]&0x08));	//X
+		input_report_key(dev, gc_btn[3], !(data[3]&0x10));	//Y
+		input_report_key(dev, gc_btn[4], !(data[3]&0x20));	//Z
+		input_report_key(dev, gc_btn[5], !(data[3]&0x04));	//C	
 		input_report_key(dev, gc_btn[6], data[3]&0x40);		//Select
 		input_report_key(dev, gc_btn[7], data[3]&0x80); 	//Start
 		input_report_key(dev, gc_btn[8], data[4]&0x40);		//Left Thumb
