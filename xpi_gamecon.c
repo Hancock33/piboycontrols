@@ -52,17 +52,18 @@ struct kobject *kobj_ref;
 
 static volatile unsigned *gpio;
 
-static const short gc_btn[] = { BTN_A, //A
-				BTN_B, //B
-				BTN_Y, //Y
-				BTN_X, //X
-				BTN_Z, //Z
-				BTN_C, //C
-				BTN_SELECT, //Select
-				BTN_START, //Start
-				BTN_THUMBL, //Left Thumb
-				BTN_TL, //Left Trigger
-				BTN_TR, //Right Trigger
+static const short gc_btn[] = { BTN_A, 
+                BTN_B, 
+                BTN_Y,
+                BTN_X,
+                BTN_TL,             //BTN Z
+                BTN_TR,             //BTN C
+                BTN_SELECT,
+                BTN_START,
+                BTN_MODE,           //Left Thumb
+                BTN_TL2,            //Left Trigger
+                BTN_TR2,            //Right Trigger     
+                -1			        /* terminating entry */
 			};
 int gc_btn_size = sizeof(gc_btn)/sizeof(gc_btn[0]);
 
@@ -171,6 +172,9 @@ static void gc_timer(struct timer_list *t)
 
 	int byteindex;
 	long bitindex;
+	//Set Dead Zone
+	int nAX = 0, nAY = 0;
+	int dzone = 20;
 
 	gpio_func(gc_gpio_data,1);	//input
 
@@ -240,28 +244,48 @@ static void gc_timer(struct timer_list *t)
 		}
 
 		lastgood++;
-		
-		input_report_key(dev, gc_btn[0], !(data[3]&0x01));	//A
-		input_report_key(dev, gc_btn[1], !(data[3]&0x02));	//B
-		input_report_key(dev, gc_btn[2], !(data[3]&0x08));	//X
-		input_report_key(dev, gc_btn[3], !(data[3]&0x10));	//Y
-		input_report_key(dev, gc_btn[4], !(data[3]&0x20));	//Z
-		input_report_key(dev, gc_btn[5], !(data[3]&0x04));	//C	
-		input_report_key(dev, gc_btn[6], data[3]&0x40);		//Select
-		input_report_key(dev, gc_btn[7], data[3]&0x80); 	//Start
-		input_report_key(dev, gc_btn[8], data[4]&0x40);		//Left Thumb
-		input_report_key(dev, gc_btn[9], data[4]&0x10);	    //Left Shoulder
-		input_report_key(dev, gc_btn[10], data[4]&0x20);	//Right Shoulder
-		input_report_abs(dev, ABS_HAT0X, !(data[4]&0x04)-!(data[4]&0x08));	//HAT X
-		input_report_abs(dev, ABS_HAT0Y, !(data[4]&0x02)-!(data[4]&0x01));	//HAT Y
-		input_report_abs(dev, ABS_X, (int16_t)data[1]);		//X Axis
-		input_report_abs(dev, ABS_Y, (int16_t)data[2]);		//Y Axis
 
+		
+    	/* start/back buttons */
+    	input_report_key(dev, BTN_START,  data[3] & 0x80);
+    	input_report_key(dev, BTN_SELECT, data[3] & 0x40);
+
+    	/* triggers left/right */
+		input_report_key(dev, BTN_TL2, data[4]&0x20);
+		input_report_key(dev, BTN_TR2, data[4]&0x10);
+
+
+    	/* buttons A,B,X,Y,TL,TR and MODE */
+    	input_report_key(dev, BTN_A,	!(data[3]&0x01));
+    	input_report_key(dev, BTN_B,	!(data[3]&0x02));
+    	input_report_key(dev, BTN_X,	!(data[3]&0x08));
+    	input_report_key(dev, BTN_Y,	!(data[3]&0x10));
+    	input_report_key(dev, BTN_TL,	!(data[3]&0x20));
+    	input_report_key(dev, BTN_TR,	!(data[3]&0x04));
+    	input_report_key(dev, BTN_MODE, data[4]&0x40);	
+    	
+    	/* Stick press left/right */
+    	//input_report_key(dev, BTN_THUMBL, null);
+    	//input_report_key(dev, BTN_THUMBR, null);			
+
+        /* DPAD as buttons (up, down, left, right) */
+		input_report_abs(dev, ABS_HAT0X, !(data[4]&0x04) - !(data[4]&0x08));
+		input_report_abs(dev, ABS_HAT0Y, !(data[4]&0x02) - !(data[4]&0x01));
+		
+		/* Left Analogue Stick */
+	    nAX = (int16_t)data[1];
+		nAY = (int16_t)data[2];
+		if ( nAX > (127 - dzone) && nAX < (127 + dzone) ) nAX = 127;
+		if ( nAY > (127 - dzone) && nAY < (127 + dzone) ) nAY = 127;
+		input_report_abs(dev, ABS_X, nAX);
+		input_report_abs(dev, ABS_Y, nAY);
 		input_sync(dev);
 
+		/* Volume Wheel */
 		input_report_abs(volume_dev, ABS_VOLUME, data[6]);
 		input_sync(volume_dev);
 
+		/* Power Switch */
 		input_report_key(power_dev, KEY_POWER, !(data[5]&0x40));
 		input_sync(power_dev);
 
